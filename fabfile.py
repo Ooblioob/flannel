@@ -102,7 +102,7 @@ def check_for_wp_cli(host):
     return sys.exit(red('No wp-cli specified in config.yaml. Please add the path to wp for this server.'))
   if not files.exists(cli):
     return sys.exit(red('WP does not exist in the %s directory. Please install wp-cli, it\'s damn handy!' % server))
-  return True
+  return cli
 
 def install_wordpress(version, host):
   if version == 'latest':
@@ -138,7 +138,10 @@ def install_wordpress(version, host):
     return red('WordPress was not properly configured!')
 
 def is_correct_wordpress_version(version):
-  return version == sudo("wp core version --allow-root")
+  try:
+    return version == sudo("wp core version --allow-root")
+  except SystemExit:
+    return False
 
 def install_all_extensions(extensions_list, type, host):
   failures = []
@@ -460,6 +463,7 @@ def deploy_wordpress(version):
   env.use_ssh_config = True
   sudoer = host['sudo_user']
   wp_cli = check_for_wp_cli(host)
+  puts(cyan(wp_cli))
   
   with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
     with cd(wp_dir):
