@@ -197,7 +197,7 @@ def git_clone(type, repo_name, url, user):
 def git_stash_and_fetch(branch):
   sudo('git stash')
   sudo('git fetch origin')
-  sudo('git checkout origin/%s' % (branch))
+  sudo('git checkout origin %s' % (branch))
 
 def install_extension_from_wp(type, name, version):
   if version == 'master':
