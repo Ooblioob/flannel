@@ -197,7 +197,13 @@ def git_clone(type, repo_name, url, user):
 def git_stash_and_fetch(branch):
   sudo('git stash')
   sudo('git fetch origin')
-  sudo('git checkout %s' % (branch))
+
+  # Determine if branch is a tag or branch, then run the appropriate checkout
+  with warn_only(): # ignore non-zero exit code if not a branch
+    if sudo('git show-ref %s' % branch) != '':
+      sudo('git checkout origin/%s' % branch)
+    else:
+      sudo('git checkout %s' % branch)
 
 def install_extension_from_wp(type, name, version):
   if version == 'master':
@@ -452,8 +458,6 @@ def deploy_extension(extension_name, type, src, version, owner='', state='active
       except SystemExit:
         sys.exit(red('Failed to install %s:' % extension_name))  
     
-      
-
 @task
 def deploy_wordpress(version):
   servers = get_servers()
