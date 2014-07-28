@@ -199,7 +199,8 @@ def git_stash_and_fetch(branch):
   sudo('git fetch origin')
 
   # Determine if branch is a tag or branch, then run the appropriate checkout
-  with warn_only(): # ignore non-zero exit code if not a branch
+  with settings(hide('warnings', 'stderr'), 
+                warn_only=True): # ignore non-zero exit code if not a branch
     if sudo('git show-ref %s' % branch) != '':
       sudo('git checkout origin/%s' % branch)
     else:
