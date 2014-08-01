@@ -160,14 +160,14 @@ def install_all_extensions(extensions_list, type, host):
       user = ''
     
     try:
-      install_extension(extension, type, src, version, user)
+      install_extension(extension, type, src, version, user, is_tag)
       activate_extension(extension, type)
     except SystemExit:
       print(red('Failed to update %s' % extension))
       failures.append(extension)
   return failures
 
-def install_extension(name, type, src, version, user=''):
+def install_extension(name, type, src, version, user='', is_tag):
     if src == 'wordpress':
       install_extension_from_wp(type, name, version)
     else:
@@ -177,34 +177,31 @@ def install_extension(name, type, src, version, user=''):
         vcs_user = user
       else: 
         vcs_user = vcs[src]['user']
-      install_extension_from_repo(name, type, url, version, vcs_user)
+      install_extension_from_repo(name, type, url, version, vcs_user, is_tag)
     puts(green("Successfully installed %s %s" % (type, name)))
       
 
-def install_extension_from_repo(name, type, url, version, vcs_user):
+def install_extension_from_repo(name, type, url, version, vcs_user, is_tag):
   with cd('wp-content/%ss' % (type)):
     if(not files.exists(name, use_sudo=True)):
       puts(cyan("Cloning %s" % name))
       git_clone(type, name, url, vcs_user)
     
     with cd(name):
-      git_stash_and_fetch(version)
+      git_stash_and_fetch(version, is_tag)
 
 def git_clone(type, repo_name, url, user):
   puts(cyan("[%s] vcs_user: %s" % (repo_name, user)))
   sudo('git clone %s/%s/%s.git' % (url, user, repo_name))
 
-def git_stash_and_fetch(branch):
+def git_stash_and_fetch(branch, is_tag):
   sudo('git stash')
   sudo('git fetch origin')
 
-  # Determine if branch is a tag or branch, then run the appropriate checkout
-  with settings(hide('warnings', 'stderr'), 
-                warn_only=True): # ignore non-zero exit code if not a branch
-    if sudo('git show-ref %s' % branch) != '':
-      sudo('git checkout origin/%s' % branch)
-    else:
+  if is_tag:
       sudo('git checkout %s' % branch)
+    else:
+      sudo('git checkout origin/%s' % branch)
 
 def install_extension_from_wp(type, name, version):
   if version == 'master':
@@ -442,8 +439,10 @@ def deploy_from_config(wp_version='', plugin_override=False, theme_override=Fals
     #   activate_all_extensions(type='theme')
 
 @task
-def deploy_extension(extension_name, type, src, version, owner='', state='active'):
+def deploy_extension(extension_name, type, src, version, owner='', state='active', is_tag=False):
   servers = get_servers()
+  import pdb;
+  pdb.set_trace()
   host = get_host(servers)
   wp_dir = host['wordpress']
   tmp_write_dir = host['tmp_write_dir'] if 'tmp_write_dir' in host else '/tmp/build'
@@ -454,7 +453,7 @@ def deploy_extension(extension_name, type, src, version, owner='', state='active
   with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
     with cd(wp_dir):
       try:
-        install_extension(extension_name, type, src, version, owner)
+        install_extension(extension_name, type, src, version, owner, is_tag)
         activate_extension(extension_name, type)
       except SystemExit:
         sys.exit(red('Failed to install %s:' % extension_name))  
