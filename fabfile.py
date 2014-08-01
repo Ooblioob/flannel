@@ -439,7 +439,7 @@ def deploy_from_config(wp_version='', plugin_override=False, theme_override=Fals
     #   activate_all_extensions(type='theme')
 
 @task
-def deploy_extension(extension_name, type, src, version, owner='', state='active', is_tag=False):
+def deploy_extension(extension_name, type, src, version, owner='', state='active', is_tag="false"):
   servers = get_servers()
   host = get_host(servers)
   wp_dir = host['wordpress']
@@ -451,7 +451,7 @@ def deploy_extension(extension_name, type, src, version, owner='', state='active
   with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
     with cd(wp_dir):
       try:
-        install_extension(extension_name, type, src, version, is_tag, owner)
+        install_extension(extension_name, type, src, version, is_tag=="true", owner)
         activate_extension(extension_name, type)
       except SystemExit:
         sys.exit(red('Failed to install %s:' % extension_name))  
