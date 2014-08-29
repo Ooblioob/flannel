@@ -5,9 +5,7 @@ from fabric.colors import red, cyan, green
 from fabtools.vagrant import vagrant
 from sysconfig import *
 from fabric.contrib.files import exists
-import yaml
-import os
-import datetime
+import yaml, os, datetime, re
 
 # Set up Flannel
 env.roledefs.update({
@@ -187,13 +185,22 @@ def install_extension_from_repo(name, type, url, version, vcs_user, is_tag):
     if(not files.exists(name, use_sudo=True)):
       puts(cyan("Cloning %s" % name))
       git_clone(type, name, url, vcs_user)
-    
+    elif not extension_has_correct_owner(name, type, vcs_user):
+      puts(cyan("The repo owner is incorrect, chaging the repo to the new owner"))
+      sudo("rm -rf %s" % name)
+      git_clone(type, name, url, vcs_user)
     with cd(name):
       git_stash_and_fetch(version, is_tag)
 
 def git_clone(type, repo_name, url, user):
   puts(cyan("[%s] vcs_user: %s" % (repo_name, user)))
   sudo('git clone %s/%s/%s.git' % (url, user, repo_name))
+
+def extension_has_correct_owner(name, type, vcs_user):
+  url = sudo("git remote -v | grep origin").split("\r\n")[0]
+  match = re.search("https:\/\/(?P<url>[\w\.]+)\/(?P<owner>[\w\.\-\_]+)\/(?P<repo>[\w\.\-\_]+).git", url)
+  # check both ower name and repo name just to be sure that it's correct.  Sometimes repos change name
+  return match.group("owner").lower() == vcs_user.lower() and match.group("repo").lower() == name.lower()
 
 def git_stash_and_fetch(branch, is_tag):
   sudo('git stash')
