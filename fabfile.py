@@ -262,8 +262,8 @@ def uninstall_extension(type, name):
 #     activate_extension(extension, type)
 
 def activate_extension(name, type):
-  if not is_extension_active(name, type):
-    sudo('wp %s activate %s --allow-root' % (type, name))
+  #if not is_extension_active(name, type):
+  sudo('wp %s activate %s --allow-root' % (type, name))
 
 def is_extension_active(name, type):
   if type == 'theme':
