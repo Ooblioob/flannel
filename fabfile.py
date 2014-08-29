@@ -201,8 +201,6 @@ def extension_has_correct_owner(name, type, vcs_user):
     url = sudo("git remote -v | grep origin").split("\r\n")[0]
   match = re.search("https:\/\/(?P<url>[\w\.]+)\/(?P<owner>[\w\.\-\_]+)\/(?P<repo>[\w\.\-\_]+).git", url)
   # check both ower name and repo name just to be sure that it's correct.  Sometimes repos change name
-  puts("owner: " + match.group("owner").lower())
-  puts("name: " + match.group("repo").lower())
   return match.group("owner").lower() == vcs_user.lower() and match.group("repo").lower() == name.lower()
 
 def git_stash_and_fetch(branch, is_tag):
