@@ -216,7 +216,8 @@ def install_extension_from_wp(type, name, version):
   else:
     if not is_extension_installed(type, name) or version != get_extension_version(type, name):
       puts(cyan('Plugin not installed or installed at the incorrect version, reinstalling'))
-      uninstall_extension(type, name)      
+      if is_extension_installed(type, name):
+        uninstall_extension(type, name)      
       if type == 'plugin':
         url = 'http://downloads.wordpress.org/plugin/%s.%s.zip' % (name, version)
       elif type == 'theme':
@@ -303,10 +304,10 @@ def export_settings():
     except:
       puts(red('Could not reach the origin server.'))
 
-  with settings(path=wp_cli, behavior='append', sudo_user=sudoer), cd(wp):
+  with (settings(path=wp_cli, behavior='append', sudo_user=sudoer), cd(wp)):
     for d in data:
       sudo('wp option get %s --format=json > /tmp/wp-settings/%s.json --allow-root' % (d, d))
-  with settings(sudo_user=sudoer), cd('/tmp/wp-settings'):
+  with (settings(sudo_user=sudoer), cd('/tmp/wp-settings')):
     sudo('git config core.fileMode 0')
     if (not files.exists('.git/refs/heads/%s' % environment) ):
       sudo('git checkout -b %s' % environment)
@@ -330,7 +331,7 @@ def update_settings(setting='all'):
     targets = setting.split(',') # the parameter as a tuple
   else:
     targets = get_settings() # if we're updating all the settings, grab them all
-  with settings(sudo_user=sudoer), cd('/tmp/wp-settings/'):
+  with (settings(sudo_user=sudoer), cd('/tmp/wp-settings/')):
     sudo('git checkout %s' % environment)
   s_counter = 0
   updated = []
@@ -370,7 +371,7 @@ def migrate_settings(target):
   puts(cyan('It is recommended you export settings from %s first.' % environment))
   if not target:
     sys.exit(red('How am I supposed to migrate if I don\'t know to go?'))
-  with settings(sudo_user=sudoer), cd('/tmp/wp-settings'):
+  with (settings(sudo_user=sudoer), cd('/tmp/wp-settings')):
     try:
       sudo('git fetch origin')
     except:
