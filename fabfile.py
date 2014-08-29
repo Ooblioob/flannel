@@ -4,6 +4,7 @@ from fabric.contrib import files
 from fabric.colors import red, cyan, green
 from fabtools.vagrant import vagrant
 from sysconfig import *
+from fabric.contrib.files import exists
 import yaml
 import os
 import datetime
@@ -214,14 +215,23 @@ def install_extension_from_wp(type, name, version):
       else:
         puts(red('%s %s could not install.' % (type, name)))
   else:
-    if not is_extension_installed(type, name) or version != get_extension_version(type, name):
-      puts(cyan('Plugin not installed or installed at the incorrect version, reinstalling'))
-      if is_extension_installed(type, name):
-        uninstall_extension(type, name)      
-      if type == 'plugin':
-        url = 'http://downloads.wordpress.org/plugin/%s.%s.zip' % (name, version)
-      elif type == 'theme':
-        url = 'http://wordpress.org/themes/download/%s.%s.zip' % (name, version)
+    if not is_extension_installed(type, name):
+      puts(cyan("Plugin not installed, installing..."))
+      url = get_wordpess_download_url_for_extension(type=type, name=name, version=version)
+
+      try:
+        install_cmd = sudo('wp %s install %s --allow-root --activate --force' % (type, url))
+        if install_cmd.return_code == 0:
+          puts(green('%s %s installed successfully.' % (type, name)))
+        else:
+          puts(red('Failed to update %s' % name))
+      except SystemExit:
+        puts(red('Failed to update %s' % name))
+
+    elif version != get_extension_version(type, name):
+      puts(cyan('Plugin not installed at the incorrect version, reinstalling'))
+      uninstall_extension(type, name)      
+      url = get_wordpess_download_url_for_extension(type=type, name=name, version=version)
       
       try:
         install_cmd = sudo('wp %s install %s --allow-root' % (type, url))
@@ -232,12 +242,16 @@ def install_extension_from_wp(type, name, version):
       except SystemExit:
         puts(red('Failed to update %s' % name))
 
+def get_wordpess_download_url_for_extension(type, name, version):
+  if type == 'plugin':
+    return 'http://downloads.wordpress.org/plugin/%s.%s.zip' % (name, version)
+  elif type == 'theme':
+    return 'http://wordpress.org/themes/download/%s.%s.zip' % (name, version)
+
 def is_extension_installed(type, name):
-  try:
+  with settings(hide('warnings', 'stderr'), warn_only=True):
     result = sudo('wp %s is-installed %s --allow-root' % (type, name))
     return result.return_code == 0
-  except SystemExit:
-    return False
 
 def get_extension_version(type, name):
   return sudo('wp %s get %s --field=version --allow-root' % (type, name))
