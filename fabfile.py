@@ -471,13 +471,14 @@ def deploy_extension(extension_name, type, src, version, owner='', state='active
   env.use_ssh_config = True
   wp_cli = check_for_wp_cli(host)
   sudoer = host['sudo_user']
-  with (settings(path=wp_cli, behavior='append', sudo_user=sudoer), shell_env(HTTP_HOST=host)):
-    with cd(wp_dir):
-      try:
-        install_extension(extension_name, type, src, version, is_tag=="true", owner)
-        activate_extension(extension_name, type)
-      except SystemExit:
-        sys.exit(red('Failed to install %s:' % extension_name))  
+  with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
+    with shell_env(HTTP_HOST=env.host):
+      with cd(wp_dir):
+        try:
+          install_extension(extension_name, type, src, version, is_tag=="true", owner)
+          activate_extension(extension_name, type)
+        except SystemExit:
+          sys.exit(red('Failed to install %s:' % extension_name))  
     
 @task
 def deploy_wordpress(version):
