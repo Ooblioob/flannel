@@ -129,7 +129,7 @@ def install_wordpress(version, host):
   # Move the configurations into the new wordpress installation
   wp_config = host['wp-config']
   try:
-    sudo('cp -R %s configurations' % (wp_config))
+    sudo('cp -R %s/*.php configurations' % (wp_config))
     sudo('chmod -R +x configurations')
     sudo('find . -iname \*.php | xargs chmod +x')
     print(green('WordPress fully configured.'))
@@ -145,25 +145,27 @@ def is_correct_wordpress_version(version):
 def install_all_extensions(extensions_list, type, host):
   failures = []
   for extension, config in extensions_list.iteritems():
-    # If a specific version is specified in config, use that. Otherwise
-    # default to the version in the host (typically master)
-    if 'version' in config:
-      version = config['version']
-    else:
-      version = host['version']
+    puts(cyan(extension))
+    version = config['version']
     src = config['src']
     
-    if 'vcs_user' in config:
-      user = config['vcs_user']
-    else:
-      user = ''
-    
+    user = config['vcs_user'] if 'vcs_user' in config else ''
+    state = config['state'] if 'state' in config else 'active'
+    # if version_type is omitted or not recognized, assume that it's a branch
+    is_tag = (config['version_type']!='branch') if 'version_type' in config else False
+
     try:
       install_extension(extension, type, src, version, is_tag, user)
-      activate_extension(extension, type)
+      if state == 'active':
+        activate_extension(extension, type)
+      elif state == 'inactive':
+        deactivate_extension(extension, type)
+      else:
+        puts(red("Unrecognized state '%s' in config for %s" % (config['state'], extension)))
+        raise SystemExit
     except SystemExit:
       print(red('Failed to update %s' % extension))
-      failures.append(extension)
+      failures.append('Failed to update %s' % extension)
   return failures
 
 def install_extension(name, type, src, version, is_tag, user=''):
@@ -227,28 +229,26 @@ def install_extension_from_wp(type, name, version):
       puts(cyan("Plugin not installed, installing..."))
       url = get_wordpess_download_url_for_extension(type=type, name=name, version=version)
 
-      try:
+      with settings(warn_only=True):
         install_cmd = sudo('wp %s install %s --allow-root --activate --force' % (type, url))
         if install_cmd.return_code == 0:
           puts(green('%s %s installed successfully.' % (type, name)))
         else:
-          puts(red('Failed to update %s' % name))
-      except SystemExit:
-        puts(red('Failed to update %s' % name))
-
+          puts(red('Failed to install %s' % name))
+          raise SystemExit("Failed to install %s" % name)
+      
     elif version != get_extension_version(type, name):
       puts(cyan('Plugin not installed at the incorrect version, reinstalling'))
       uninstall_extension(type, name)      
       url = get_wordpess_download_url_for_extension(type=type, name=name, version=version)
       
-      try:
+      with settings(warn_only=True):
         install_cmd = sudo('wp %s install %s --allow-root' % (type, url))
         if install_cmd.return_code == 0:
           puts(green('%s %s installed successfully.' % (type, name)))
         else:
-          puts(red('Failed to update %s' % name))
-      except SystemExit:
-        puts(red('Failed to update %s' % name))
+          puts(red('Failed to install %s' % name))
+          raise SystemExit("Failed to install %s " % name)
 
 def get_wordpess_download_url_for_extension(type, name, version):
   if type == 'plugin':
@@ -286,6 +286,10 @@ def uninstall_extension(type, name):
 def activate_extension(name, type):
   #if not is_extension_active(name, type):
   sudo('wp %s activate %s --allow-root' % (type, name))
+
+# TODO consolidate the activate and deactivate functions
+def deactivate_extension(name, type):
+  sudo('wp %s deactivate %s --allow-root' % (type, name))
 
 def is_extension_active(name, type):
   if type == 'theme':
@@ -414,6 +418,7 @@ def migrate_settings(target):
 
 @task
 def deploy_from_config(wp_version='', plugin_override=False, theme_override=False):
+  env.use_ssh_config = True
   servers = get_servers()
   host = get_host(servers)
   wp_dir = host['wordpress']
@@ -441,26 +446,24 @@ def deploy_from_config(wp_version='', plugin_override=False, theme_override=Fals
       if themes is not None:
         themes_f = install_all_extensions(themes, 'theme', host)
   if len(plugins_f) > 0:
-    failures.append(plugins_f)
+    failures.extend(plugins_f)
   if len(themes_f) > 0:
-    failures.append(themes_f)
+    failures.extend(themes_f)
   if len(failures) > 0:
-    sys.exit(red('Deployment encountered the following problems:'))
+    puts(red('Deployment encountered the following problems:'))
     for f in failures:
       puts(red(f))
+    puts(red("These errors must be fixed before the new configuration will be copied over..."))
+    # we don't delete the tmp_dir in case a user wants to do a post mortem
+    sys.exit(1)
   else:
     puts('All done, ready to copy!')
     with cd('%s/wordpress' % tmp_write_dir):
       #sudo('cp -RfT . %s' % wp_dir)
       sudo('rsync -ra . %s' % wp_dir)
-    # with cd(wp_dir):
-    #   toggle_extensions()
-    
-    sudo('rm -rf %s' % tmp_write_dir)
-    # with cd(wp_dir):
-    #   activate_all_extensions(type='plugin')
-    #   activate_all_extensions(type='theme')
 
+    sudo('rm -rf %s' % tmp_write_dir)
+    
 @task
 def deploy_extension(extension_name, type, src, version, owner='', state='active', is_tag="false"):
   servers = get_servers()
