@@ -418,13 +418,12 @@ def migrate_settings(target):
 
 @task
 def deploy_from_config(wp_version='', plugin_override=False, theme_override=False):
-  env.use_ssh_config = True
+  #env.use_ssh_config = True
   servers = get_servers()
   host = get_host(servers)
   wp_dir = host['wordpress']
   tmp_write_dir = host['tmp_write_dir'] if 'tmp_write_dir' in host else '/tmp/build'
   env.user = host['user']
-  env.use_ssh_config = True
   wp_cli = check_for_wp_cli(host)
   themes = get_themes()
   plugins = get_plugins()
