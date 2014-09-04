@@ -459,6 +459,11 @@ def deploy_from_config(wp_version='', plugin_override=False, theme_override=Fals
     puts('All done, ready to copy!')
     with cd('%s/wordpress' % tmp_write_dir):
       #sudo('cp -RfT . %s' % wp_dir)
+
+      # remove the f directory that gets auto created, if we leave it then it will
+      # change the owner of the f directory to root:root
+      sudo("rm -rf f")
+
       sudo('rsync -ra . %s' % wp_dir)
 
     sudo('rm -rf %s' % tmp_write_dir)
