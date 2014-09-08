@@ -27,7 +27,6 @@ def get_servers():
 def get_plugins():
   data = get_config()
   if data.has_key('Plugins'):
-    print data['Plugins']
     return data['Plugins']
   else:
     print 'I got nothing!'
@@ -206,8 +205,10 @@ def extension_has_correct_owner(name, type, vcs_user):
   return match.group("owner").lower() == vcs_user.lower() and match.group("repo").lower() == name.lower()
 
 def git_stash_and_fetch(branch, is_tag):
-  sudo('git stash')
   sudo('git fetch origin')
+  # rather than stashing, this ensures we don't have any unchecked files or 
+  # local changes that would cause problems during checkout
+  sudo('git reset --hard origin')
 
   if is_tag:
     sudo('git checkout %s' % branch)
@@ -238,7 +239,7 @@ def install_extension_from_wp(type, name, version):
           raise SystemExit("Failed to install %s" % name)
       
     elif version != get_extension_version(type, name):
-      puts(cyan('Plugin not installed at the incorrect version, reinstalling'))
+      puts(cyan('Plugin not installed at the correct version, reinstalling'))
       uninstall_extension(type, name)      
       url = get_wordpess_download_url_for_extension(type=type, name=name, version=version)
       
