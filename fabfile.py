@@ -419,55 +419,56 @@ def migrate_settings(target):
 
 @task
 def deploy_from_config(wp_version='', plugin_override=False, theme_override=False):
-  #env.use_ssh_config = True
-  servers = get_servers()
-  host = get_host(servers)
-  wp_dir = host['wordpress']
-  tmp_write_dir = host['tmp_write_dir'] if 'tmp_write_dir' in host else '/tmp/build'
-  env.user = host['user']
-  wp_cli = check_for_wp_cli(host)
-  themes = get_themes()
-  plugins = get_plugins()
-  config = get_config()
-  sudoer = host['sudo_user']
-  failures = []
-  with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
-    # create the directory in case it doesn't exist
-    sudo('mkdir -p %s' % tmp_write_dir)
+  with shell_env(HTTP_HOST=env.host): # fixes a warning message in wp-cli
+    #env.use_ssh_config = True
+    servers = get_servers()
+    host = get_host(servers)
+    wp_dir = host['wordpress']
+    tmp_write_dir = host['tmp_write_dir'] if 'tmp_write_dir' in host else '/tmp/build'
+    env.user = host['user']
+    wp_cli = check_for_wp_cli(host)
+    themes = get_themes()
+    plugins = get_plugins()
+    config = get_config()
+    sudoer = host['sudo_user']
+    failures = []
+    with settings(path=wp_cli, behavior='append', sudo_user=sudoer):
+      # create the directory in case it doesn't exist
+      sudo('mkdir -p %s' % tmp_write_dir)
 
-    # copy the contents to a temporary working directory
-    sudo('rsync -ra --exclude=wordpress/f %s %s' % (wp_dir, tmp_write_dir))
-    with cd('%s/wordpress' % tmp_write_dir):
-      if wp_version != 'latest':
-        wp_version = config['Application']['WordPress']['version']  
-      install_wordpress(wp_version, host)
-      if plugins is not None:
-        plugins_f = install_all_extensions(plugins, 'plugin', host)
-      if themes is not None:
-        themes_f = install_all_extensions(themes, 'theme', host)
-  if len(plugins_f) > 0:
-    failures.extend(plugins_f)
-  if len(themes_f) > 0:
-    failures.extend(themes_f)
-  if len(failures) > 0:
-    puts(red('Deployment encountered the following problems:'))
-    for f in failures:
-      puts(red(f))
-    puts(red("These errors must be fixed before the new configuration will be copied over..."))
-    # we don't delete the tmp_dir in case a user wants to do a post mortem
-    sys.exit(1)
-  else:
-    puts('All done, ready to copy!')
-    with cd('%s/wordpress' % tmp_write_dir):
-      #sudo('cp -RfT . %s' % wp_dir)
+      # copy the contents to a temporary working directory
+      sudo('rsync -ra --exclude=wordpress/f %s %s' % (wp_dir, tmp_write_dir))
+      with cd('%s/wordpress' % tmp_write_dir):
+        if wp_version != 'latest':
+          wp_version = config['Application']['WordPress']['version']  
+        install_wordpress(wp_version, host)
+        if plugins is not None:
+          plugins_f = install_all_extensions(plugins, 'plugin', host)
+        if themes is not None:
+          themes_f = install_all_extensions(themes, 'theme', host)
+    if len(plugins_f) > 0:
+      failures.extend(plugins_f)
+    if len(themes_f) > 0:
+      failures.extend(themes_f)
+    if len(failures) > 0:
+      puts(red('Deployment encountered the following problems:'))
+      for f in failures:
+        puts(red(f))
+      puts(red("These errors must be fixed before the new configuration will be copied over..."))
+      # we don't delete the tmp_dir in case a user wants to do a post mortem
+      sys.exit(1)
+    else:
+      puts('All done, ready to copy!')
+      with cd('%s/wordpress' % tmp_write_dir):
+        #sudo('cp -RfT . %s' % wp_dir)
 
-      # remove the f directory that gets auto created, if we leave it then it will
-      # change the owner of the f directory to root:root
-      sudo("rm -rf f")
+        # remove the f directory that gets auto created, if we leave it then it will
+        # change the owner of the f directory to root:root
+        sudo("rm -rf f")
 
-      sudo('rsync -ra . %s' % wp_dir)
+        sudo('rsync -ra . %s' % wp_dir)
 
-    sudo('rm -rf %s' % tmp_write_dir)
+      sudo('rm -rf %s' % tmp_write_dir)
     
 @task
 def deploy_extension(extension_name, type, src, version, owner='', state='active', is_tag="false"):
