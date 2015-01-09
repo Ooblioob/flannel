@@ -135,9 +135,11 @@ def install_wordpress(version, host):
   except SystemExit:
     return red('WordPress was not properly configured!')
 
-def is_correct_wordpress_version(version):
+def is_correct_wordpress_version(expected_version):
   with settings(hide('warnings', 'stderr'), warn_only=True):
-    return version == sudo("wp core version --allow-root")
+    wp_version = sudo("wp core version --allow-root")
+    puts(cyan("wordpress is at '%s'" % wp_version))
+    return expected_version == wp_version
 
 def install_all_extensions(extensions_list, type, host):
   failures = []
