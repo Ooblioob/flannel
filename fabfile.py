@@ -140,6 +140,8 @@ def is_correct_wordpress_version(expected_version):
     wp_version = sudo("wp core version --allow-root")
     puts(cyan("wordpress is at '%s', expects to be at '%s'" % (wp_version, expected_version)))
     puts(cyan(expected_version == wp_version))
+    puts(cyan(type(expected_version)))
+    puts(cyan(type(wp_version)))
     return expected_version == wp_version
 
 def install_all_extensions(extensions_list, type, host):
